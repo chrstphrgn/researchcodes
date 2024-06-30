@@ -5,7 +5,7 @@ Several software programs were used in the different sections of the analyses. I
 "R Codes Part One" covers the following sections of the analysis:
   1. Exploration of nighttime lights
   2. Kernel density estimation of nighttime lights
-  3. Quadrat analysis for the correlation between Nnighttime lights and vegetation
+  3. Quadrat analysis for the correlation between nighttime lights and vegetation
   4. Variogram modeling
   5. Kriging
   6. Computation of DistNS (distance to nearest school) covariate
