@@ -1,0 +1,301 @@
+//Specify the shape file for Lipa City from the municipal shape file
+var shp = ee.FeatureCollection(table);
+Map.addLayer(shp, {}, "PH shp");
+var lipa = table.filter(ee.Filter.eq("name", "City of Lipa"));
+Map.addLayer(lipa, {}, "lipa");
+Map.centerObject(lipa, 12); //Center the view to Lipa City
+
+//SECTION ONE - EXTRACTING NIGHTTIME LIGHTS ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+var VCMCFG = ee.ImageCollection('NOAA/VIIRS/DNB/MONTHLY_V1/VCMCFG');
+var ntl = VCMCFG
+    .filterDate('2024-01-01', '2024-01-31')
+    .select('avg_rad')
+    .first();
+var style = {
+  min: 0,
+  max: 63,
+  palette: ["black", "white"]
+};
+//Since we have an "image collection", we only need one image. We filter using .first
+Map.addLayer(ntl.clip(lipa), style, "Jan 2024 Lipa City NTL", false);
+Map.addLayer(ntl, style, "Jan 2024 NTL", false);
+
+//We get the resolution of the image to verify it with literature. From the website, https://developers.google.com/earth-engine/datasets/catalog/NOAA_VIIRS_DNB_MONTHLY_V1_VCMCFG,
+//the resoultion is 463.83 meters. Running the code below verifies this information with a lot more precision.
+var resolution = ntl.projection().nominalScale();
+print(resolution);
+
+//With the satellite image clipped onto Lipa City, we now get the pixel information from this image.
+//This returns a .csv file containing the longitude, latitude, and avg_rad value of each pixel.
+var pixelsDict = ntl.clip(lipa)
+  .addBands(ee.Image.pixelLonLat()).reduceRegion({
+  reducer: ee.Reducer.toList(), 
+  geometry: lipa, 
+  scale: resolution
+});
+var bandNames = pixelsDict.keys();
+var pixels = ee.Array(pixelsDict.values()).transpose().toList();
+var table = ee.FeatureCollection(
+  pixels.map(function (bandValues) {
+    // Dictionary with bands for keys and valueband value for value
+    var properties = ee.Dictionary.fromLists(
+      bandNames, ee.Array(bandValues).toList()
+    );
+    var geometry = ee.Geometry.Point(
+      properties.getNumber('longitude'),
+      properties.getNumber('latitude')
+    );
+    return ee.Feature(geometry, properties);
+  })  
+);
+print(table.limit(100));
+
+Export.table.toDrive({
+  collection: table, 
+  description: "NTL_pixels",
+  folder: "spatstat",
+  // Columns to include. 
+  selectors: ["longitude","latitude","avg_rad"] 
+});
+
+//As an aside, we can also export the image to Google Drive.
+var image_export = ntl.clip(lipa).visualize(style);
+Export.image.toDrive({
+  image: image_export,
+  region: lipa,
+  description: "NTL_City_of_Lipa",
+  folder: "spatstat",
+  scale: resolution, //
+  maxPixels: 1e9
+});
+
+//Getting a summary of the light intensity of entire lipa City
+var stats = ntl.reduceRegion({
+  reducer: ee.Reducer.mean(),
+  geometry: lipa,
+  scale: resolution});
+print(stats);
+//Mean NTL in Lipa City: 4.186732103162261
+
+
+
+//SECTION TWO - EXTRACTING VEGETATION INDICES ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+var VNP13A1 = ee.ImageCollection('NOAA/VIIRS/001/VNP13A1');
+var vi = VNP13A1
+    .filterDate('2024-01-01', '2024-01-31')
+    .first();
+    
+//Interestingly, the website, https://developers.google.com/earth-engine/datasets/catalog/NOAA_VIIRS_001_VNP13A1#bands, specifies
+//that the image resoution is 500m, but checking below, it is actually 463.3127165279165.
+var resolution_vi = vi.projection().nominalScale();
+print(resolution_vi);
+//Interestingly, the images for NTL and VI are different.
+
+var ndvi = vi.select('NDVI');
+var nirReflectance = vi.select('NIR_reflectance');
+var redReflectance = vi.select('red_reflectance');
+
+var ndvi_style = {
+  min: -10000,
+  max: 10000,
+  palette: ['000000', '004400', '008800', '00bb00', '00ff00']
+};
+var nirVisParams = {
+  min: 0,
+  max: 10000,
+  palette: ["purple","red","yellow"]
+};
+
+var redVisParams = {
+  min: 0,
+  max: 10000,
+  palette: ["purple","red","yellow"]
+};
+//Again, since we have an "image collection", we only need one image. We filter using .first
+Map.addLayer(ndvi.clip(lipa), ndvi_style, "Jan 2024 Lipa City NDVI", false);
+Map.addLayer(nirReflectance.clip(lipa), nirVisParams, 'Jan 2024 Lipa City NIR Reflectance', false);
+Map.addLayer(redReflectance.clip(lipa), redVisParams, 'Jan 2024 Lipa City Red Reflectance', false);
+
+
+//Getting pixel values of NDVI ------------------------------------------------------------------------------------------------------
+var pixelsDict_VI = ndvi.clip(lipa)
+  .addBands(ee.Image.pixelLonLat()).reduceRegion({
+  reducer: ee.Reducer.toList(), 
+  geometry: lipa, 
+  scale: resolution
+});
+var bandNames = pixelsDict_VI.keys();
+var pixels = ee.Array(pixelsDict_VI.values()).transpose().toList();
+var table_NDVI = ee.FeatureCollection(
+  pixels.map(function (bandValues) {
+    // Dictionary with bands for keys and valueband value for value
+    var properties = ee.Dictionary.fromLists(
+      bandNames, ee.Array(bandValues).toList()
+    );
+    // Set to null if you just want longitude and latitude as columns
+    var geometry = ee.Geometry.Point(
+      properties.getNumber('longitude'),
+      properties.getNumber('latitude')
+    );
+    return ee.Feature(geometry, properties);
+  })  
+);
+print(table_NDVI.limit(100));
+
+Export.table.toDrive({
+  collection: table_NDVI, 
+  description: "NDVI_pixels",
+  folder: "spatstat",
+  // Columns to include. 
+  selectors: ["longitude","latitude","NDVI"] 
+});
+
+//Getting pixel values of NIR_reflectance -------------------------------------------------------------------------------------------
+var pixelsDict_VI2 = nirReflectance.clip(lipa)
+  .addBands(ee.Image.pixelLonLat()).reduceRegion({
+  reducer: ee.Reducer.toList(), 
+  geometry: lipa, 
+  scale: resolution_vi
+});
+var bandNames = pixelsDict_VI2.keys();
+var pixels = ee.Array(pixelsDict_VI2.values()).transpose().toList();
+var table_NIR_reflectance = ee.FeatureCollection(
+  pixels.map(function (bandValues) {
+    // Dictionary with bands for keys and valueband value for value
+    var properties = ee.Dictionary.fromLists(
+      bandNames, ee.Array(bandValues).toList()
+    );
+    // Set to null if you just want longitude and latitude as columns
+    var geometry = ee.Geometry.Point(
+      properties.getNumber('longitude'),
+      properties.getNumber('latitude')
+    );
+    return ee.Feature(geometry, properties);
+  })  
+);
+print(table_NIR_reflectance.limit(100));
+
+Export.table.toDrive({
+  collection: table_NIR_reflectance, 
+  description: "nir_pixels",
+  folder: "spatstat",
+  // Columns to include. 
+  selectors: ["longitude","latitude","NIR_reflectance"] 
+});
+
+//Getting pixel values of red_reflectance -------------------------------------------------------------------------------------------
+var pixelsDict_VI3 = redReflectance.clip(lipa)
+  .addBands(ee.Image.pixelLonLat()).reduceRegion({
+  reducer: ee.Reducer.toList(), 
+  geometry: lipa, 
+  scale: resolution_vi
+});
+var bandNames = pixelsDict_VI3.keys();
+var pixels = ee.Array(pixelsDict_VI3.values()).transpose().toList();
+var table_red_Reflectance = ee.FeatureCollection(
+  pixels.map(function (bandValues) {
+    // Dictionary with bands for keys and valueband value for value
+    var properties = ee.Dictionary.fromLists(
+      bandNames, ee.Array(bandValues).toList()
+    );
+    // Set to null if you just want longitude and latitude as columns
+    var geometry = ee.Geometry.Point(
+      properties.getNumber('longitude'),
+      properties.getNumber('latitude')
+    );
+    return ee.Feature(geometry, properties);
+  })  
+);
+print(table_red_Reflectance.limit(100));
+
+Export.table.toDrive({
+  collection: table_red_Reflectance, 
+  description: "red_pixels",
+  folder: "spatstat",
+  // Columns to include. 
+  selectors: ["longitude","latitude","red_reflectance"] 
+});
+
+
+//SECTION TWO - EXTRACTING ANNUAL NIGHTTIME LIGHTS ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+function addYearLayer(year) {
+  var dataset = ee.ImageCollection('NOAA/VIIRS/DNB/ANNUAL_V21')
+    .filter(ee.Filter.calendarRange(year, year, 'year'));
+  var average = dataset.select('average').first();
+  var ntl2 = average.clip(lipa);
+  var style = {
+    min: 0,
+    max: 63,
+    palette: ["black", "white"]
+  };
+  Map.addLayer(ntl2, style, "NTL " + year);
+  
+  var pixelsDict = ntl2.clip(lipa)
+    .addBands(ee.Image.pixelLonLat()).reduceRegion({
+    reducer: ee.Reducer.toList(), 
+    geometry: lipa, 
+    scale: resolution
+  });
+  var bandNames = pixelsDict.keys();
+  var pixels = ee.Array(pixelsDict.values()).transpose().toList();
+  var table = ee.FeatureCollection(
+    pixels.map(function (bandValues) {
+      var properties = ee.Dictionary.fromLists(
+        bandNames, ee.Array(bandValues).toList()
+      );
+      var geometry = ee.Geometry.Point(
+        properties.getNumber('longitude'),
+        properties.getNumber('latitude')
+      );
+      return ee.Feature(geometry, properties);
+    })  
+  );
+  Export.table.toDrive({
+    collection: table, 
+    description: "NTL" + year,
+    folder: "spatstat",
+    selectors: ["longitude","latitude","average"] 
+  });
+}
+
+for (var year = 2014; year <= 2021; year++) {
+  addYearLayer(year);
+}
+
+var v22 = ee.ImageCollection("NOAA/VIIRS/DNB/ANNUAL_V22");
+var ntl2022 = v22
+    .filterDate('2022-01-01', '2023-01-31')
+    .select('average')
+    .first();
+var style = {
+  min: 0,
+  max: 63,
+  palette: ["black", "white"]
+};
+Map.addLayer(ntl2022.clip(lipa), style, "NTL 2022", false);
+var pixelsDict = ntl2022.clip(lipa)
+  .addBands(ee.Image.pixelLonLat()).reduceRegion({
+  reducer: ee.Reducer.toList(), 
+  geometry: lipa, 
+  scale: resolution
+});
+var bandNames = pixelsDict.keys();
+var pixels = ee.Array(pixelsDict.values()).transpose().toList();
+var table = ee.FeatureCollection(
+  pixels.map(function (bandValues) {
+    var properties = ee.Dictionary.fromLists(
+      bandNames, ee.Array(bandValues).toList()
+    );
+    var geometry = ee.Geometry.Point(
+      properties.getNumber('longitude'),
+      properties.getNumber('latitude')
+    );
+    return ee.Feature(geometry, properties);
+  })  
+);
+Export.table.toDrive({
+  collection: table, 
+  description: "NTL 2022",
+  folder: "spatstat",
+  selectors: ["longitude","latitude","average"] 
+});
