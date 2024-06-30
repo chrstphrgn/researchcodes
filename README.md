@@ -17,4 +17,4 @@ Several software programs were used in the different sections of the analyses. I
   4. Covariate spatial image preparation
   5. Fitting Log-Gaussian Cox Process and Inhomogeneous Poisson Process models to model the intensity of learning spaces
 
-As mentioned in the paper, Google Earth Engine is used to overlay the nighttime lights and vegetation cover satellite images over Lipa City. Pixel information were extracted there as well. Running the code in GEE requires uploading the necessary shape files for the study region. 
+As mentioned in the paper, Google Earth Engine is used to overlay the nighttime lights and vegetation cover satellite images over Lipa City. Pixel information were extracted there as well. Running the code in GEE requires uploading the necessary shape file for the study region. 
