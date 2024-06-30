@@ -10,11 +10,11 @@ Several software programs were used in the different sections of the analyses. I
   5. Kriging
   6. Computation of DistNS (distance to nearest school) covariate
   7. Testing for departure from complete spatial randomness of learning spaces
-  8. Covariate spatial image preparation for modeling intensity of learning spaces
 
 "R Codes Part Two" covers the following:
   1. Exploration of learning spaces
-  2. Kernel density estimation of learning spaces
-  3. Fitting Log-Gaussian Cox Process and Inhomogeneous Poisson Process models to model the intensity of learning spaces
+  3. Kernel density estimation of learning spaces
+  4. Covariate spatial image preparation
+  5. Fitting Log-Gaussian Cox Process and Inhomogeneous Poisson Process models to model the intensity of learning spaces
 
 As mentioned in the paper, Google Earth Engine is used to overlay the nighttime lights and vegetation cover satellite images over Lipa City. Pixel information were extracted there as well. Running the code in GEE requires uploading the necessary shape files for the study region. 
