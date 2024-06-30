@@ -40,9 +40,6 @@ library(automap)
 library(DescTools)
 library(ggspatial)
 
-find_rtools()
-writeLines('PATH="${RTOOLS44_HOME}\\usr\\bin;${PATH}"', con = "~/.Renviron")
-
 #####SECTION 1 - EXPLORATION --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 ##GRATICULE MAPS OF LOCATIONS --------------------------------------------------
@@ -742,7 +739,6 @@ Skew(final$dist_nearest_school)
 Skew(final$pred_ntl_antilog)
 Skew(final$pred_ndvi)
 
-
 ##MODELING PROPER --------------------------------------------------------------
 
 ##TESTING FOR CLUSTERING OF LEARNING SPACES POI --------------------------------
@@ -789,54 +785,3 @@ print(cet)
 Env <- envelope(final_ppp,Kest,nsim=999,rank=1) 
 write.csv(Env, file = "D:/UPD Files/4th Year/2nd Sem/Stat 197 WFX - Spatial Data Analysis/Paper/poi/k-function test.csv", row.names = FALSE)
 plot(Env, main = "Global K-function Envelope for Learning Spaces POI with 999 Simulations")
-
-##COVARIATE SPATIAL IMAGE PREPARATION ------------------------------------------
-sf <- st_read("D:/UPD Files/4th Year/2nd Sem/Stat 197 WFX - Spatial Data Analysis/Paper/Nighttime Lights/CityOfLipa_shape.shp")
-lipa_sf <- st_geometry(sf)
-lipa_sf <- st_transform(lipa_sf, crs = 4326)
-final <- read.csv("D:/UPD Files/4th Year/2nd Sem/Stat 197 WFX - Spatial Data Analysis/Paper/poi/final.csv")
-data <- final
-data_sf <- st_as_sf(data, coords = c("longitude", "latitude"), crs = 4326)
-
-# Project to a suitable projected coordinate system, e.g., UTM Zone 51N
-lipa_sf_proj <- st_transform(lipa_sf, crs = 32651)
-# Transform learning spaces to the same projected CRS
-data_sf_proj <- st_transform(data_sf, crs = 32651)
-# Convert to spatstat ppp object
-window <- as.owin(lipa_sf_proj)
-data_ppp <- as.ppp(st_coordinates(data_sf_proj), window)
-plot(data_ppp)
-
-# transforming NTL to image
-ntl <- cbind(data$longitude,data$latitude,data$pred_ntl_antilog)
-colnames(ntl) <- c("x","y","ntl")
-ntl <- as.data.frame(ntl)
-ntl_sf <- st_as_sf(ntl, coords = c("x", "y"), crs = 4326)
-ntl_sf_proj <- st_transform(ntl_sf, crs = 32651)
-ntl_ppp <- as.ppp(ntl_sf_proj,W=window)
-NTL <- Smooth(ntl_ppp)
-
-# transforming NDVI to image
-ndvi <- cbind(data$longitude,data$latitude,data$pred_ndvi)
-colnames(ndvi) <- c("x","y","ndvi")
-ndvi <- as.data.frame(ndvi)
-ndvi_sf <- st_as_sf(ndvi, coords = c("x", "y"), crs = 4326)
-ndvi_sf_proj <- st_transform(ndvi_sf, crs = 32651)
-ndvi_ppp <- as.ppp(ndvi_sf_proj,W=window)
-NDVI <- Smooth(ndvi_ppp)
-
-# transforming DIST to image
-dist <- cbind(data$longitude,data$latitude,data$dist_nearest_school)
-colnames(dist) <- c("x","y","dist")
-dist <- as.data.frame(dist)
-dist_sf <- st_as_sf(dist, coords = c("x", "y"), crs = 4326)
-dist_sf_proj <- st_transform(dist_sf, crs = 32651)
-dist_ppp <- as.ppp(dist_sf_proj,W=window)
-DistNS <- Smooth(dist_ppp)
-
-
-
-
-
-
-
